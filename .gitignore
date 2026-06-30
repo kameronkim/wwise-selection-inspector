@@ -1,5 +1,32 @@
+# Python
 __pycache__/
-*.pyc
+*.py[cod]
+*.pyo
+*.pyd
+
+# Virtual environments
 .venv/
+.build-venv/
 venv/
+env/
+
+# PyInstaller output
+build/
+dist/
+*.spec.bak
+
+# Release artifacts
+*.app
+*.dmg
+*.exe
+*.zip
+
+# Logs
+*.log
+
+# macOS
 .DS_Store
+
+# IDE
+.idea/
+.vscode/

@@ -91,7 +91,7 @@ class SelectionBridge(QObject):
         return [
             WwiseObject(
                 name=str(obj.get("name") or ""),
-                object_type=str(obj.get("type") or "Unknown"),
+                object_type=str(obj.get("type") or "Unclassified"),
                 path=str(obj.get("path") or obj.get("originalFilePath") or obj.get("sound:originalWavFilePath") or ""),
             )
             for obj in objects

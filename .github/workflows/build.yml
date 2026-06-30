@@ -1,0 +1,82 @@
+name: Build Desktop Apps
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build-macos:
+    name: Build macOS app
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m venv .build-venv
+          .build-venv/bin/python -m pip install --upgrade pip
+          .build-venv/bin/python -m pip install -r requirements-build.txt
+
+      - name: Build app
+        run: |
+          WSC_PROJECT_ROOT="$PWD" .build-venv/bin/pyinstaller --clean --noconfirm packaging/WwiseSelectionCounter-macos.spec
+
+      - name: Create DMG
+        run: |
+          mkdir -p dist/dmg-root
+          cp -R "dist/Wwise Selection Counter.app" dist/dmg-root/
+          hdiutil create \
+            -volname "Wwise Selection Counter" \
+            -srcfolder dist/dmg-root \
+            -ov \
+            -format UDZO \
+            "dist/WwiseSelectionCounter-macOS.dmg"
+
+      - name: Upload macOS artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: WwiseSelectionCounter-macOS
+          path: |
+            dist/Wwise Selection Counter.app
+            dist/WwiseSelectionCounter-macOS.dmg
+
+  build-windows:
+    name: Build Windows app
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        shell: pwsh
+        run: |
+          python -m venv .build-venv
+          .\.build-venv\Scripts\python.exe -m pip install --upgrade pip
+          .\.build-venv\Scripts\python.exe -m pip install -r requirements-build.txt
+
+      - name: Build app
+        shell: pwsh
+        run: |
+          $env:WSC_PROJECT_ROOT = (Get-Location).Path
+          .\.build-venv\Scripts\pyinstaller.exe --clean --noconfirm packaging\WwiseSelectionCounter-windows.spec
+
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: WwiseSelectionCounter-Windows
+          path: dist/WwiseSelectionCounter/
