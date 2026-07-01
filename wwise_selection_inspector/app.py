@@ -7,6 +7,7 @@ from typing import Any
 
 from PySide6.QtCore import QObject, Qt, QTimer, Signal
 from PySide6.QtGui import QAction
+from PySide6.QtNetwork import QLocalServer, QLocalSocket
 from PySide6.QtWidgets import (
     QApplication,
     QCheckBox,
@@ -21,9 +22,12 @@ from PySide6.QtWidgets import (
 )
 from waapi import WaapiClient
 
+from wwise_selection_inspector import __app_name__
+
 
 SELECTION_TOPIC = "ak.wwise.ui.selectionChanged"
 GET_SELECTED_OBJECTS = "ak.wwise.ui.getSelectedObjects"
+SINGLE_INSTANCE_SERVER_NAME = "kameron_wwise_selection_inspector"
 
 RETURN_FIELDS = [
     "id",
@@ -40,6 +44,50 @@ class WwiseObject:
     name: str
     object_type: str
     path: str
+
+
+class SingleInstanceGuard(QObject):
+    activate_requested = Signal()
+
+    def __init__(self, server_name: str) -> None:
+        super().__init__()
+        self.server_name = server_name
+        self.server = QLocalServer(self)
+
+    def acquire(self) -> bool:
+        socket = QLocalSocket()
+        socket.connectToServer(self.server_name)
+
+        if socket.waitForConnected(200):
+            socket.write(b"activate")
+            socket.flush()
+            socket.waitForBytesWritten(200)
+            socket.disconnectFromServer()
+            return False
+
+        QLocalServer.removeServer(self.server_name)
+
+        if not self.server.listen(self.server_name):
+            # Fail open. The inspector is still useful even if single-instance setup fails.
+            return True
+
+        self.server.newConnection.connect(self._on_new_connection)
+        return True
+
+    def _on_new_connection(self) -> None:
+        while self.server.hasPendingConnections():
+            socket = self.server.nextPendingConnection()
+            if socket is None:
+                continue
+
+            socket.readyRead.connect(lambda socket=socket: self._read_socket(socket))
+            if socket.bytesAvailable() > 0:
+                self._read_socket(socket)
+
+    def _read_socket(self, socket: QLocalSocket) -> None:
+        socket.readAll()
+        socket.disconnectFromServer()
+        self.activate_requested.emit()
 
 
 class SelectionBridge(QObject):
@@ -92,7 +140,12 @@ class SelectionBridge(QObject):
             WwiseObject(
                 name=str(obj.get("name") or ""),
                 object_type=str(obj.get("type") or "Unclassified"),
-                path=str(obj.get("path") or obj.get("originalFilePath") or obj.get("sound:originalWavFilePath") or ""),
+                path=str(
+                    obj.get("path")
+                    or obj.get("originalFilePath")
+                    or obj.get("sound:originalWavFilePath")
+                    or ""
+                ),
             )
             for obj in objects
         ]
@@ -101,7 +154,7 @@ class SelectionBridge(QObject):
         self.selection_changed.emit()
 
 
-class WwiseSelectionCounterWindow(QWidget):
+class WwiseSelectionInspectorWindow(QWidget):
     def __init__(self) -> None:
         super().__init__()
 
@@ -109,7 +162,7 @@ class WwiseSelectionCounterWindow(QWidget):
         self.bridge.selection_changed.connect(self.refresh_selection)
         self.bridge.connection_failed.connect(self.show_connection_error)
 
-        self.setWindowTitle("Wwise Selection Counter")
+        self.setWindowTitle(__app_name__)
         self.resize(460, 560)
 
         self.status_label = QLabel("Disconnected")
@@ -156,6 +209,12 @@ class WwiseSelectionCounterWindow(QWidget):
         refresh_action.setShortcut("Ctrl+R")
         refresh_action.triggered.connect(self.refresh_selection)
         self.addAction(refresh_action)
+
+    def activate_existing_window(self) -> None:
+        self.show()
+        self.setWindowState((self.windowState() & ~Qt.WindowMinimized) | Qt.WindowActive)
+        self.raise_()
+        self.activateWindow()
 
     def connect_to_wwise(self) -> None:
         self.bridge.disconnect()
@@ -212,11 +271,11 @@ class WwiseSelectionCounterWindow(QWidget):
         QMessageBox.warning(
             self,
             "Wwise Connection Failed",
-            "Wwise Authoring API에 연결하지 못했습니다.\n\n"
-            "확인할 항목:\n"
-            "1. Wwise Authoring이 실행 중인지 확인\n"
-            "2. Project > User Preferences > Enable Wwise Authoring API 활성화\n"
-            "3. WAAPI 포트가 차단되지 않았는지 확인\n\n"
+            "Failed to connect to Wwise Authoring API.\n\n"
+            "Check the following:\n"
+            "1. Wwise Authoring is running.\n"
+            "2. Project > User Preferences > Enable Wwise Authoring API is enabled.\n"
+            "3. WAAPI port access is not blocked.\n\n"
             f"Error: {message}",
         )
 
@@ -227,8 +286,15 @@ class WwiseSelectionCounterWindow(QWidget):
 
 def main() -> int:
     app = QApplication(sys.argv)
-    window = WwiseSelectionCounterWindow()
+
+    guard = SingleInstanceGuard(SINGLE_INSTANCE_SERVER_NAME)
+    if not guard.acquire():
+        return 0
+
+    window = WwiseSelectionInspectorWindow()
+    guard.activate_requested.connect(window.activate_existing_window)
     window.show()
+
     return app.exec()
 
 

@@ -28,26 +28,28 @@ jobs:
 
       - name: Build app
         run: |
-          WSC_PROJECT_ROOT="$PWD" .build-venv/bin/pyinstaller --clean --noconfirm packaging/WwiseSelectionCounter-macos.spec
+          WSI_PROJECT_ROOT="$PWD" .build-venv/bin/pyinstaller --clean --noconfirm packaging/WwiseSelectionInspector-macos.spec
 
       - name: Create DMG
         run: |
           mkdir -p dist/dmg-root
-          cp -R "dist/Wwise Selection Counter.app" dist/dmg-root/
+          cp -R "dist/Wwise Selection Inspector.app" dist/dmg-root/
+          cp "addons/commands/user/install_macos.command" dist/dmg-root/
+          cp "addons/commands/user/README.md" "dist/dmg-root/Wwise-Command-Addon-README.md"
+          chmod +x dist/dmg-root/install_macos.command
           hdiutil create \
-            -volname "Wwise Selection Counter" \
+            -volname "Wwise Selection Inspector" \
             -srcfolder dist/dmg-root \
             -ov \
             -format UDZO \
-            "dist/WwiseSelectionCounter-macOS.dmg"
+            "dist/WwiseSelectionInspector-macOS.dmg"
 
       - name: Upload macOS artifact
         uses: actions/upload-artifact@v7
         with:
-          name: WwiseSelectionCounter-macOS
+          name: WwiseSelectionInspector-macOS
           path: |
-            dist/Wwise Selection Counter.app
-            dist/WwiseSelectionCounter-macOS.dmg
+            dist/WwiseSelectionInspector-macOS.dmg
 
   build-windows:
     name: Build Windows app
@@ -72,11 +74,18 @@ jobs:
       - name: Build app
         shell: pwsh
         run: |
-          $env:WSC_PROJECT_ROOT = (Get-Location).Path
-          .\.build-venv\Scripts\pyinstaller.exe --clean --noconfirm packaging\WwiseSelectionCounter-windows.spec
+          $env:WSI_PROJECT_ROOT = (Get-Location).Path
+          .\.build-venv\Scripts\pyinstaller.exe --clean --noconfirm packaging\WwiseSelectionInspector-windows.spec
+
+      - name: Package Windows app
+        shell: pwsh
+        run: |
+          Copy-Item addons\commands\user\install_windows.ps1 dist\WwiseSelectionInspector\install_windows.ps1 -Force
+          Copy-Item addons\commands\user\README.md dist\WwiseSelectionInspector\Wwise-Command-Addon-README.md -Force
+          Compress-Archive -Path dist\WwiseSelectionInspector\* -DestinationPath dist\WwiseSelectionInspector-Windows.zip -Force
 
       - name: Upload Windows artifact
         uses: actions/upload-artifact@v7
         with:
-          name: WwiseSelectionCounter-Windows
-          path: dist/WwiseSelectionCounter/
+          name: WwiseSelectionInspector-Windows
+          path: dist/WwiseSelectionInspector-Windows.zip

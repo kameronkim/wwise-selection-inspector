@@ -2,9 +2,7 @@
 from pathlib import Path
 import os
 
-# PyInstaller does not always define __file__ while executing a spec.
-# The build scripts set WSC_PROJECT_ROOT explicitly; SPECPATH is used as a fallback.
-project_root = Path(os.environ.get("WSC_PROJECT_ROOT", Path(SPECPATH).resolve().parent)).resolve()
+project_root = Path(os.environ.get("WSI_PROJECT_ROOT", Path(SPECPATH).resolve().parent)).resolve()
 
 block_cipher = None
 
@@ -13,7 +11,7 @@ a = Analysis(
     pathex=[str(project_root)],
     binaries=[],
     datas=[],
-    hiddenimports=["waapi"],
+    hiddenimports=["waapi", "PySide6.QtNetwork"],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
@@ -30,7 +28,7 @@ exe = EXE(
     a.scripts,
     [],
     exclude_binaries=True,
-    name="WwiseSelectionCounter",
+    name="WwiseSelectionInspector",
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -47,5 +45,5 @@ coll = COLLECT(
     strip=False,
     upx=True,
     upx_exclude=[],
-    name="WwiseSelectionCounter",
+    name="WwiseSelectionInspector",
 )

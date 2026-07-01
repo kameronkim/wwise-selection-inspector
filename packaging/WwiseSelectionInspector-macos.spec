@@ -2,9 +2,7 @@
 from pathlib import Path
 import os
 
-# PyInstaller does not always define __file__ while executing a spec.
-# The build scripts set WSC_PROJECT_ROOT explicitly; SPECPATH is used as a fallback.
-project_root = Path(os.environ.get("WSC_PROJECT_ROOT", Path(SPECPATH).resolve().parent)).resolve()
+project_root = Path(os.environ.get("WSI_PROJECT_ROOT", Path(SPECPATH).resolve().parent)).resolve()
 
 block_cipher = None
 
@@ -13,7 +11,7 @@ a = Analysis(
     pathex=[str(project_root)],
     binaries=[],
     datas=[],
-    hiddenimports=["waapi"],
+    hiddenimports=["waapi", "PySide6.QtNetwork"],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
@@ -30,7 +28,7 @@ exe = EXE(
     a.scripts,
     [],
     exclude_binaries=True,
-    name="WwiseSelectionCounter",
+    name="WwiseSelectionInspector",
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -51,17 +49,17 @@ coll = COLLECT(
     strip=False,
     upx=True,
     upx_exclude=[],
-    name="WwiseSelectionCounter",
+    name="WwiseSelectionInspector",
 )
 
 app = BUNDLE(
     coll,
-    name="Wwise Selection Counter.app",
+    name="Wwise Selection Inspector.app",
     icon=None,
-    bundle_identifier="com.kameron.wwise-selection-counter",
+    bundle_identifier="com.kameron.wwise-selection-inspector",
     info_plist={
-        "CFBundleDisplayName": "Wwise Selection Counter",
-        "CFBundleName": "Wwise Selection Counter",
+        "CFBundleDisplayName": "Wwise Selection Inspector",
+        "CFBundleName": "Wwise Selection Inspector",
         "NSHighResolutionCapable": True,
         "LSMinimumSystemVersion": "11.0",
     },

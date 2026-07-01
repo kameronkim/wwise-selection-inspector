@@ -10,16 +10,17 @@ __pycache__/
 venv/
 env/
 
-# PyInstaller output
+# PyInstaller
 build/
 dist/
 *.spec.bak
 
-# Release artifacts
+# Build artifacts
 *.app
 *.dmg
 *.exe
 *.zip
+*.tar.gz
 
 # Logs
 *.log
